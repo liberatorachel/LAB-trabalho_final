@@ -1,104 +1,108 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
-#define MAX_STRING_LENGTH 100
-#define MAX_KEYWORDS 10
-
-typedef struct
-{
-    char id[MAX_STRING_LENGTH];
-    char firstName[MAX_STRING_LENGTH];
-    char lastName[MAX_STRING_LENGTH];
-} Author;
+#define tamanho_maximo_string 100
+#define maximo_palavras_chave 10
+#define falha_saida -1
+#define verdadeiro 1
+#define falso 0
 
 typedef struct
 {
-    char id[MAX_STRING_LENGTH]; // Identificador único
-    char name[MAX_STRING_LENGTH];
-    char type[MAX_STRING_LENGTH];
-    Author *authors;
-    int numAuthors;
-    int year;
-    char publicationLocation[MAX_STRING_LENGTH];
-    int numPages;
-    char httpAddress[MAX_STRING_LENGTH];
-    char **keywords;
-    int numKeywords;
-} Reference;
+    char id[tamanho_maximo_string];
+    char nome[tamanho_maximo_string];
+    char apelido[tamanho_maximo_string];
+} Autor;
 
 typedef struct
 {
-    Reference *references;
-    int numReferences;
-    Author *authors;
-    int numAuthors;
-} Database;
+    char id[tamanho_maximo_string];
+    char nome[tamanho_maximo_string];
+    char tipo[tamanho_maximo_string];
+    Autor *autores;
+    int numero_autores;
+    int ano;
+    char local_publicacao[tamanho_maximo_string];
+    int numero_paginas;
+    char endereco_http[tamanho_maximo_string];
+    char **palavras_chave;
+    int numero_palavras_chave;
+} Referencia;
 
-// Declarações das funções
-bool isValidURL(const char *url);
-bool isDuplicateKeyword(char **keywords, int numKeywords, const char *keyword);
-void showAuthors(Database *db);
-void insertAuthor(Database *db);
-void showReferences(Database *db);
-bool validateReference(Reference *ref);
-void insertReference(Database *db);
-void freeReference(Reference *ref);
-void freeDatabase(Database *db);
+typedef struct
+{
+    Referencia *referencias;
+    int numero_referencias;
+    Autor *autores;
+    int numero_autores;
+} BancoDeDados;
 
-// Função para validar se um URL está no formato correto
-bool isValidURL(const char *url)
+int endereco_http_valido(const char *url);
+int palavra_chave_duplicada(char **palavras_chave, int numero_palavras_chave, const char *palavra_chave);
+void exibir_autores(BancoDeDados *bd);
+void inserir_autor(BancoDeDados *bd);
+void exibir_referencias(BancoDeDados *bd);
+int validar_referencia(Referencia *ref);
+void inserir_referencia(BancoDeDados *bd);
+void liberar_referencia(Referencia *ref);
+void liberar_banco_de_dados(BancoDeDados *bd);
+void ler_string(char *buffer, int tamanho);
+
+void ler_string(char *buffer, int tamanho)
+{
+    if (fgets(buffer, tamanho, stdin) != NULL)
+    {
+        buffer[strcspn(buffer, "\n")] = '\0';
+    }
+}
+
+int endereco_http_valido(const char *url)
 {
     return (strstr(url, "http://") == url || strstr(url, "https://") == url);
 }
 
-// Função para verificar se uma palavra-chave já existe
-bool isDuplicateKeyword(char **keywords, int numKeywords, const char *keyword)
+int palavra_chave_duplicada(char **palavras_chave, int numero_palavras_chave, const char *palavra_chave)
 {
-    for (int i = 0; i < numKeywords; i++)
+    for (int i = 0; i < numero_palavras_chave; i++)
     {
-        if (strcmp(keywords[i], keyword) == 0)
+        if (strcmp(palavras_chave[i], palavra_chave) == 0)
         {
-            return true;
+            return verdadeiro;
         }
     }
-    return false;
+    return falso;
 }
 
-// Função para exibir a tabela de autores
-void showAuthors(Database *db)
+void exibir_autores(BancoDeDados *bd)
 {
     printf("\nTabela de Autores:\n");
     printf("+----------------------+----------------------+----------------------+\n");
     printf("| ID                   | Nome                 | Apelido              |\n");
     printf("+----------------------+----------------------+----------------------+\n");
-    for (int i = 0; i < db->numAuthors; i++)
+    for (int i = 0; i < bd->numero_autores; i++)
     {
-        printf("| %-20s | %-20s | %-20s |\n", db->authors[i].id, db->authors[i].firstName, db->authors[i].lastName);
+        printf("| %-20s | %-20s | %-20s |\n", bd->autores[i].id, bd->autores[i].nome, bd->autores[i].apelido);
     }
     printf("+----------------------+----------------------+----------------------+\n");
 }
 
-// Função para inserir um novo autor
-void insertAuthor(Database *db)
+void inserir_autor(BancoDeDados *bd)
 {
-    db->authors = realloc(db->authors, (db->numAuthors + 1) * sizeof(Author));
-    if (db->authors == NULL)
+    bd->autores = realloc(bd->autores, (bd->numero_autores + 1) * sizeof(Autor));
+    if (bd->autores == NULL)
     {
         printf("Erro ao alocar memória para novos autores.\n");
-        exit(EXIT_FAILURE);
+        exit(falha_saida);
     }
 
-    Author *newAuthor = &db->authors[db->numAuthors];
+    Autor *novo_autor = &bd->autores[bd->numero_autores];
     printf("Digite o ID do autor: ");
-    fgets(newAuthor->id, MAX_STRING_LENGTH, stdin);
-    newAuthor->id[strcspn(newAuthor->id, "\n")] = '\0';
+    ler_string(novo_autor->id, tamanho_maximo_string);
 
-    // Verificar se o autor já existe
-    for (int i = 0; i < db->numAuthors; i++)
+    for (int i = 0; i < bd->numero_autores; i++)
     {
-        if (strcmp(db->authors[i].id, newAuthor->id) == 0)
+        if (strcmp(bd->autores[i].id, novo_autor->id) == 0)
         {
             printf("Autor já existe.\n");
             return;
@@ -106,159 +110,123 @@ void insertAuthor(Database *db)
     }
 
     printf("Digite o nome do autor: ");
-    fgets(newAuthor->firstName, MAX_STRING_LENGTH, stdin);
-    newAuthor->firstName[strcspn(newAuthor->firstName, "\n")] = '\0';
+    ler_string(novo_autor->nome, tamanho_maximo_string);
 
     printf("Digite o apelido do autor: ");
-    fgets(newAuthor->lastName, MAX_STRING_LENGTH, stdin);
-    newAuthor->lastName[strcspn(newAuthor->lastName, "\n")] = '\0';
+    ler_string(novo_autor->apelido, tamanho_maximo_string);
 
-    db->numAuthors++;
-    showAuthors(db);
+    bd->numero_autores++;
+    exibir_autores(bd);
 }
 
-// Função para exibir a tabela de referências
-void showReferences(Database *db)
-{ // >>> ALTERAR A TABELA !!! <<<
+void exibir_referencias(BancoDeDados *bd)
+{
     printf("\nTabela de Referências:\n");
-    printf("+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+\n");
-    printf("| %-20s | %-20s | %-20s | %-20s | %-20s | %-20s | %-20s | %-20s | %-20s | %-20s |\n",
-           "ID", "Nome", "Tipo", "Ano", "Local", "Páginas", "HTTP", "Autores", "Palavras-chave", " ");
-    printf("+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+\n");
 
-    for (int i = 0; i < db->numReferences; i++)
+    for (int i = 0; i < bd->numero_referencias; i++)
     {
-        Reference *ref = &db->references[i];
+        Referencia *ref = &bd->referencias[i];
 
-        // Exibir ID
-        printf("| %-20s ", ref->id);
+        printf("\nReferência %d:\n", i + 1);
+        printf("+---------------------------+\n");
+        printf("| Campo                     |\n");
+        printf("+---------------------------+\n");
+        printf("| ID: %s\n", ref->id);
+        printf("| Nome: %s\n", ref->nome);
+        printf("| Tipo: %s\n", ref->tipo);
+        printf("| Ano: %d\n", ref->ano);
+        printf("| Local de Publicação: %s\n", ref->local_publicacao);
+        printf("| Número de Páginas: %d\n", ref->numero_paginas);
+        printf("| Endereço HTTP: %s\n", ref->endereco_http);
 
-        // Exibir Nome
-        printf("| %-20s ", ref->name);
-
-        // Exibir Tipo
-        printf("| %-20s ", ref->type);
-
-        // Exibir Ano
-        printf("| %-20d ", ref->year);
-
-        // Exibir Local
-        printf("| %-20s ", ref->publicationLocation);
-
-        // Exibir Páginas
-        printf("| %-20d ", ref->numPages);
-
-        // Exibir HTTP
-        printf("| %-20s ", ref->httpAddress);
-
-        // Exibir Autores
-        printf("| ");
-        for (int j = 0; j < ref->numAuthors; j++)
+        printf("| Autores:\n");
+        for (int j = 0; j < ref->numero_autores; j++)
         {
-            printf("%s %s", ref->authors[j].firstName, ref->authors[j].lastName);
-            if (j < ref->numAuthors - 1)
-            {
-                printf(", ");
-            }
+            printf("|   %s %s\n", ref->autores[j].nome, ref->autores[j].apelido);
         }
-        int length = 20 - (strlen(ref->httpAddress) / 2);
-        for (int k = 0; k < length; k++)
-        {
-            printf(" ");
-        }
-        printf(" |");
 
-        // Exibir Palavras-chave
-        printf(" ");
-        for (int k = 0; k < ref->numKeywords; k++)
+        printf("| Palavras-chave:\n");
+        for (int k = 0; k < ref->numero_palavras_chave; k++)
         {
-            printf("%s", ref->keywords[k]);
-            if (k < ref->numKeywords - 1)
-            {
-                printf(", ");
-            }
+            printf("|   %s\n", ref->palavras_chave[k]);
         }
-        printf(" |\n");
-        printf("+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+----------------------+\n");
+
+        printf("+---------------------------+\n");
     }
 }
 
-// Função para validar campos obrigatórios ao inserir uma referência
-bool validateReference(Reference *ref)
+int validar_referencia(Referencia *ref)
 {
-    bool valid = true;
+    int valido = verdadeiro;
 
-    if (strlen(ref->name) == 0)
+    if (strlen(ref->nome) == 0)
     {
         printf("Nome da publicação não pode estar vazio.\n");
-        valid = false;
+        valido = falso;
     }
 
-    if (strlen(ref->type) == 0)
+    if (strlen(ref->tipo) == 0)
     {
         printf("Tipo de publicação não pode estar vazio.\n");
-        valid = false;
+        valido = falso;
     }
 
-    if (ref->numAuthors <= 0)
+    if (ref->numero_autores <= 0)
     {
         printf("Número de autores deve ser maior que zero.\n");
-        valid = false;
+        valido = falso;
     }
 
-    if (ref->year <= 0)
+    if (ref->ano <= 0)
     {
         printf("Ano de publicação deve ser um valor positivo.\n");
-        valid = false;
+        valido = falso;
     }
 
-    if (strlen(ref->publicationLocation) == 0)
+    if (strlen(ref->local_publicacao) == 0)
     {
         printf("Local de publicação não pode estar vazio.\n");
-        valid = false;
+        valido = falso;
     }
 
-    if (ref->numPages <= 0)
+    if (ref->numero_paginas <= 0)
     {
         printf("Número de páginas deve ser maior que zero.\n");
-        valid = false;
+        valido = falso;
     }
 
-    if (!isValidURL(ref->httpAddress))
+    if (!endereco_http_valido(ref->endereco_http))
     {
         printf("Endereço HTTP inválido. Deve começar com http:// ou https://.\n");
-        valid = false;
+        valido = falso;
     }
 
-    if (ref->numKeywords <= 0)
+    if (ref->numero_palavras_chave <= 0)
     {
         printf("Número de palavras-chave deve ser maior que zero.\n");
-        valid = false;
+        valido = falso;
     }
 
-    return valid;
+    return valido;
 }
 
-// Função para inserir uma nova referência
-void insertReference(Database *db)
+void inserir_referencia(BancoDeDados *bd)
 {
-    db->references = realloc(db->references, (db->numReferences + 1) * sizeof(Reference));
-    if (db->references == NULL)
+    bd->referencias = realloc(bd->referencias, (bd->numero_referencias + 1) * sizeof(Referencia));
+    if (bd->referencias == NULL)
     {
         printf("Erro ao alocar memória para novas referências.\n");
-        exit(EXIT_FAILURE);
+        exit(falha_saida);
     }
 
-    Reference *newRef = &db->references[db->numReferences];
+    Referencia *nova_ref = &bd->referencias[bd->numero_referencias];
 
     printf("Digite o ID da referência: ");
-    fgets(newRef->id, MAX_STRING_LENGTH, stdin);
-    newRef->id[strcspn(newRef->id, "\n")] = '\0';
+    ler_string(nova_ref->id, tamanho_maximo_string);
 
-    // Verificar unicidade do ID da referência
-    for (int i = 0; i < db->numReferences; i++)
+    for (int i = 0; i < bd->numero_referencias; i++)
     {
-        if (strcmp(db->references[i].id, newRef->id) == 0)
+        if (strcmp(bd->referencias[i].id, nova_ref->id) == 0)
         {
             printf("Referência com este ID já existe.\n");
             return;
@@ -266,145 +234,118 @@ void insertReference(Database *db)
     }
 
     printf("Digite o nome da publicação: ");
-    fgets(newRef->name, MAX_STRING_LENGTH, stdin);
-    newRef->name[strcspn(newRef->name, "\n")] = '\0';
+    ler_string(nova_ref->nome, tamanho_maximo_string);
 
     printf("Digite o tipo de publicação: ");
-    fgets(newRef->type, MAX_STRING_LENGTH, stdin);
-    newRef->type[strcspn(newRef->type, "\n")] = '\0';
+    ler_string(nova_ref->tipo, tamanho_maximo_string);
 
     printf("Digite o número de autores: ");
-    scanf("%d", &newRef->numAuthors);
-    getchar(); // Limpar o caractere de nova linha deixado pelo scanf
+    scanf("%d", &nova_ref->numero_autores);
 
-    newRef->authors = malloc(newRef->numAuthors * sizeof(Author));
-    if (newRef->authors == NULL)
+    while (getchar() != '\n')
+        ;
+
+    nova_ref->autores = malloc(nova_ref->numero_autores * sizeof(Autor));
+    if (nova_ref->autores == NULL)
     {
         printf("Erro ao alocar memória para autores.\n");
-        exit(EXIT_FAILURE);
+        exit(falha_saida);
     }
 
-    for (int i = 0; i < newRef->numAuthors; i++)
+    for (int i = 0; i < nova_ref->numero_autores; i++)
     {
         printf("Digite o ID do autor %d: ", i + 1);
-        fgets(newRef->authors[i].id, MAX_STRING_LENGTH, stdin);
-        newRef->authors[i].id[strcspn(newRef->authors[i].id, "\n")] = '\0';
-
+        ler_string(nova_ref->autores[i].id, tamanho_maximo_string);
         printf("Digite o nome do autor %d: ", i + 1);
-        fgets(newRef->authors[i].firstName, MAX_STRING_LENGTH, stdin);
-        newRef->authors[i].firstName[strcspn(newRef->authors[i].firstName, "\n")] = '\0';
-
+        ler_string(nova_ref->autores[i].nome, tamanho_maximo_string);
         printf("Digite o apelido do autor %d: ", i + 1);
-        fgets(newRef->authors[i].lastName, MAX_STRING_LENGTH, stdin);
-        newRef->authors[i].lastName[strcspn(newRef->authors[i].lastName, "\n")] = '\0';
+        ler_string(nova_ref->autores[i].apelido, tamanho_maximo_string);
     }
 
-    printf("Digite o ano de publicação: ");
-    scanf("%d", &newRef->year);
-    getchar();
+    printf("Digite o ano da publicação: ");
+    scanf("%d", &nova_ref->ano);
+    while (getchar() != '\n')
+        ; // Limpar o buffer
 
     printf("Digite o local de publicação: ");
-    fgets(newRef->publicationLocation, MAX_STRING_LENGTH, stdin);
-    newRef->publicationLocation[strcspn(newRef->publicationLocation, "\n")] = '\0';
+    ler_string(nova_ref->local_publicacao, tamanho_maximo_string);
 
     printf("Digite o número de páginas: ");
-    scanf("%d", &newRef->numPages);
-    getchar();
+    scanf("%d", &nova_ref->numero_paginas);
+    while (getchar() != '\n')
+        ; // Limpar o buffer
 
     printf("Digite o endereço HTTP: ");
-    fgets(newRef->httpAddress, MAX_STRING_LENGTH, stdin);
-    newRef->httpAddress[strcspn(newRef->httpAddress, "\n")] = '\0';
+    ler_string(nova_ref->endereco_http, tamanho_maximo_string);
 
     printf("Digite o número de palavras-chave: ");
-    scanf("%d", &newRef->numKeywords);
-    getchar();
+    scanf("%d", &nova_ref->numero_palavras_chave);
+    while (getchar() != '\n')
+        ; // Limpar o buffer
 
-    newRef->keywords = malloc(newRef->numKeywords * sizeof(char *));
-    if (newRef->keywords == NULL)
+    nova_ref->palavras_chave = malloc(nova_ref->numero_palavras_chave * sizeof(char *));
+    if (nova_ref->palavras_chave == NULL)
     {
         printf("Erro ao alocar memória para palavras-chave.\n");
-        exit(EXIT_FAILURE);
+        exit(falha_saida);
     }
 
-    for (int i = 0; i < newRef->numKeywords; i++)
+    for (int i = 0; i < nova_ref->numero_palavras_chave; i++)
     {
-        newRef->keywords[i] = malloc(MAX_STRING_LENGTH * sizeof(char));
-        if (newRef->keywords[i] == NULL)
-        {
-            printf("Erro ao alocar memória para uma palavra-chave.\n");
-            exit(EXIT_FAILURE);
-        }
-
+        nova_ref->palavras_chave[i] = malloc(tamanho_maximo_string * sizeof(char));
         printf("Digite a palavra-chave %d: ", i + 1);
-        fgets(newRef->keywords[i], MAX_STRING_LENGTH, stdin);
-        newRef->keywords[i][strcspn(newRef->keywords[i], "\n")] = '\0';
+        ler_string(nova_ref->palavras_chave[i], tamanho_maximo_string);
 
-        // Verificar duplicidade de palavras-chave
-        if (isDuplicateKeyword(newRef->keywords, i, newRef->keywords[i]))
+        if (palavra_chave_duplicada(nova_ref->palavras_chave, i, nova_ref->palavras_chave[i]))
         {
-            printf("Palavra-chave duplicada, não adicionada.\n");
-            free(newRef->keywords[i]);
-            i--; // Reduzir o índice para reentrar na iteração
+            printf("Palavra-chave duplicada. Por favor, insira novamente.\n");
+            i--;
         }
     }
 
-    if (validateReference(newRef))
+    if (validar_referencia(nova_ref))
     {
-        db->numReferences++;
-        showReferences(db); // Exibir a tabela de referências após inserção
+        bd->numero_referencias++;
+        exibir_referencias(bd);
     }
     else
     {
-        // Liberar memória em caso de referência inválida
-        for (int i = 0; i < newRef->numKeywords; i++)
-        {
-            free(newRef->keywords[i]);
-        }
-        free(newRef->keywords);
-        free(newRef->authors);
+        printf("Dados da referência inválidos. Não foi possível inserir a referência.\n");
+        liberar_referencia(nova_ref);
     }
 }
 
-// Função para liberar a memória alocada para uma referência
-void freeReference(Reference *ref)
+void liberar_referencia(Referencia *ref)
 {
-    if (ref)
+    free(ref->autores);
+    for (int i = 0; i < ref->numero_palavras_chave; i++)
     {
-        free(ref->authors);
-        for (int i = 0; i < ref->numKeywords; i++)
-        {
-            free(ref->keywords[i]);
-        }
-        free(ref->keywords);
+        free(ref->palavras_chave[i]);
     }
+    free(ref->palavras_chave);
 }
 
-// Função para liberar a memória do banco de dados
-void freeDatabase(Database *db)
+void liberar_banco_de_dados(BancoDeDados *bd)
 {
-    if (db)
+    for (int i = 0; i < bd->numero_referencias; i++)
     {
-        for (int i = 0; i < db->numReferences; i++)
-        {
-            freeReference(&db->references[i]);
-        }
-        free(db->references);
-        free(db->authors);
+        liberar_referencia(&bd->referencias[i]);
     }
+    free(bd->referencias);
+    free(bd->autores);
 }
 
 int main()
 {
-    Database db = {NULL, 0, NULL, 0};
+    BancoDeDados bd;
+    bd.referencias = NULL;
+    bd.numero_referencias = 0;
+    bd.autores = NULL;
+    bd.numero_autores = 0;
 
-    // Exemplo de uso
-    insertAuthor(&db);
-    insertReference(&db);
+    inserir_autor(&bd);
+    inserir_referencia(&bd);
 
-    // Liberação de memória antes de encerrar o programa
-    freeDatabase(&db);
-
+    liberar_banco_de_dados(&bd);
     return 0;
 }
-
-// SALVAR ARQUIVO APÓS ALTERAÇÃO (MUITO PARECIDO DO QUE FOI FEITO EM FUP)
