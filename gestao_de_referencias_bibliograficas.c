@@ -57,6 +57,13 @@ void ler_string(char *buffer, int tamanho)
     }
 }
 
+void ler_inteiro(int *num)
+{
+    scanf("%d", num);
+    while (getchar() != '\n')
+        ;
+}
+
 int endereco_http_valido(const char *url)
 {
     return (strstr(url, "http://") == url || strstr(url, "https://") == url);
@@ -116,7 +123,6 @@ void inserir_autor(BancoDeDados *bd)
     ler_string(novo_autor->apelido, tamanho_maximo_string);
 
     bd->numero_autores++;
-    exibir_autores(bd);
 }
 
 void exibir_referencias(BancoDeDados *bd)
@@ -254,12 +260,40 @@ void inserir_referencia(BancoDeDados *bd)
 
     for (int i = 0; i < nova_ref->numero_autores; i++)
     {
-        printf("Digite o ID do autor %d: ", i + 1);
-        ler_string(nova_ref->autores[i].id, tamanho_maximo_string);
+        char nome_autor[tamanho_maximo_string];
         printf("Digite o nome do autor %d: ", i + 1);
-        ler_string(nova_ref->autores[i].nome, tamanho_maximo_string);
-        printf("Digite o apelido do autor %d: ", i + 1);
-        ler_string(nova_ref->autores[i].apelido, tamanho_maximo_string);
+        ler_string(nome_autor, tamanho_maximo_string);
+
+        // Verifica se o autor ja existe
+        int autor_encontrado = falso;
+        for (int j = 0; j < bd->numero_autores; j++)
+        {
+            if (strcasecmp(bd->autores[j].nome, nome_autor) == 0)
+            {
+                nova_ref->autores[i] = bd->autores[j];
+                autor_encontrado = verdadeiro;
+                break;
+            }
+        }
+
+        if (!autor_encontrado)
+        {
+            printf("Autor nao encontrado. Cadastrando novo autor...\n");
+            bd->autores = realloc(bd->autores, (bd->numero_autores + 1) * sizeof(Autor));
+            if (bd->autores == NULL)
+            {
+                printf("Erro ao alocar memoria para novos autores.\n");
+                exit(falha_saida);
+            }
+            Autor *novo_autor = &bd->autores[bd->numero_autores];
+            strcpy(novo_autor->nome, nome_autor);
+            printf("Digite o ID do autor: ");
+            ler_string(novo_autor->id, tamanho_maximo_string);
+            printf("Digite o apelido do autor: ");
+            ler_string(novo_autor->apelido, tamanho_maximo_string);
+            nova_ref->autores[i] = *novo_autor;
+            bd->numero_autores++;
+        }
     }
 
     printf("Digite o ano da publicação: ");
@@ -335,17 +369,153 @@ void liberar_banco_de_dados(BancoDeDados *bd)
     free(bd->autores);
 }
 
+void salvar_banco_de_dados(BancoDeDados *bd)
+{
+    FILE *file = fopen("banco_de_dados.txt", "w");
+    if (!file)
+    {
+        printf("Erro ao abrir o arquivo para salvar.\n");
+        return;
+    }
+
+    // Salvar autores
+    fprintf(file, "%d\n", bd->numero_autores);
+    for (int i = 0; i < bd->numero_autores; i++)
+    {
+        fprintf(file, "%s;%s;%s\n", bd->autores[i].id, bd->autores[i].nome, bd->autores[i].apelido);
+    }
+
+    // Salvar referencias
+    fprintf(file, "%d\n", bd->numero_referencias);
+    for (int i = 0; i < bd->numero_referencias; i++)
+    {
+        Referencia *ref = &bd->referencias[i];
+        fprintf(file, "%s;%s;%s;%d;%s;%d;%s;%d\n", ref->id, ref->nome, ref->tipo, ref->numero_autores, ref->local_publicacao, ref->numero_paginas, ref->endereco_http, ref->numero_palavras_chave);
+        for (int j = 0; j < ref->numero_autores; j++)
+        {
+            fprintf(file, "%s;%s;%s\n", ref->autores[j].id, ref->autores[j].nome, ref->autores[j].apelido);
+        }
+        for (int k = 0; k < ref->numero_palavras_chave; k++)
+        {
+            fprintf(file, "%s\n", ref->palavras_chave[k]);
+        }
+    }
+
+    fclose(file);
+    printf("Banco de dados salvo com sucesso!\n");
+}
+
+void carregar_banco_de_dados(BancoDeDados *bd)
+{
+    FILE *file = fopen("banco_de_dados.txt", "r");
+    if (!file)
+    {
+        printf("Erro ao abrir o arquivo para carregar.\n");
+        return;
+    }
+
+    // Carregar autores
+    fscanf(file, "%d\n", &bd->numero_autores);
+    bd->autores = malloc(bd->numero_autores * sizeof(Autor));
+    for (int i = 0; i < bd->numero_autores; i++)
+    {
+        fscanf(file, "%[^;];%[^;];%[^\n]\n", bd->autores[i].id, bd->autores[i].nome, bd->autores[i].apelido);
+    }
+
+    // Carregar referencias
+    fscanf(file, "%d\n", &bd->numero_referencias);
+    bd->referencias = malloc(bd->numero_referencias * sizeof(Referencia));
+    for (int i = 0; i < bd->numero_referencias; i++)
+    {
+        Referencia *ref = &bd->referencias[i];
+        fscanf(file, "%[^;];%[^;];%[^;];%d;%[^;];%d;%[^;];%d\n", ref->id, ref->nome, ref->tipo, &ref->numero_autores, ref->local_publicacao, &ref->numero_paginas, ref->endereco_http, &ref->numero_palavras_chave);
+        ref->autores = malloc(ref->numero_autores * sizeof(Autor));
+        for (int j = 0; j < ref->numero_autores; j++)
+        {
+            fscanf(file, "%[^;];%[^;];%[^\n]\n", ref->autores[j].id, ref->autores[j].nome, ref->autores[j].apelido);
+        }
+        ref->palavras_chave = malloc(ref->numero_palavras_chave * sizeof(char *));
+        for (int k = 0; k < ref->numero_palavras_chave; k++)
+        {
+            ref->palavras_chave[k] = malloc(tamanho_maximo_string * sizeof(char));
+            fscanf(file, "%[^\n]\n", ref->palavras_chave[k]);
+        }
+    }
+
+    fclose(file);
+    printf("Banco de dados carregado com sucesso!\n");
+}
+
+void alterar_referencia()
+{
+    // FALTA !!!
+}
+
+void excluir_referencia()
+{
+    // FALTA !!!
+}
+
+void exibir_estatisticas()
+{
+    // FALTA !!!
+}
+
 int main()
 {
     BancoDeDados bd;
-    bd.referencias = NULL;
-    bd.numero_referencias = 0;
-    bd.autores = NULL;
     bd.numero_autores = 0;
+    bd.autores = NULL;
+    bd.numero_referencias = 0;
+    bd.referencias = NULL;
 
-    inserir_autor(&bd);
-    inserir_referencia(&bd);
+    carregar_banco_de_dados(&bd);
 
-    liberar_banco_de_dados(&bd);
+    int opcao;
+    do
+    {
+        printf("\nMenu:\n");
+        printf("1. Inserir Referencia\n");
+        printf("2. Inserir Autor\n");
+        printf("3. Exibir Referencias\n");
+        printf("4. Exibir Autores\n");
+        printf("5. Alterar Referencia\n");
+        printf("6. Excluir Referencia\n");
+        printf("7. Exibir Estatisticas\n");
+        printf("8. Sair\n");
+        printf("Escolha uma opcao: ");
+        ler_inteiro(&opcao);
+
+        switch (opcao)
+        {
+        case 1:
+            inserir_referencia(&bd);
+            break;
+        case 2:
+            inserir_autor(&bd);
+            break;
+        case 3:
+            exibir_referencias(&bd);
+            break;
+        case 4:
+            exibir_autores(&bd);
+            break;
+        case 5:
+            alterar_referencia();
+            break;
+        case 6:
+            excluir_referencia();
+            break;
+        case 7:
+            exibir_estatisticas();
+        case 8:
+            salvar_banco_de_dados(&bd);
+            liberar_banco_de_dados(&bd);
+            break;
+        default:
+            printf("Opcao invalida!\n");
+        }
+    } while (opcao != 8);
+
     return 0;
 }
